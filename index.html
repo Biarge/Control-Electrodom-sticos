@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <title>Control Electrodomésticos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Control Electrodomésticos</h1>
+      <p>Agenda de encargos y colocaciones</p>
+    </div>
+    <button id="newBtn" class="primary">＋ Nuevo registro</button>
+  </header>
+
+  <main class="container">
+    <section id="agendaView">
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="Buscar cliente, teléfono, código...">
+        <select id="statusFilter">
+          <option value="all">Todos</option>
+          <option value="paid">Pagados</option>
+          <option value="unpaid">No pagados</option>
+          <option value="placed">Colocados</option>
+          <option value="pending">Pendientes de colocar</option>
+          <option value="invoiced">Facturados</option>
+          <option value="notInvoiced">No facturados</option>
+        </select>
+      </div>
+      <div id="records" class="records"></div>
+      <div id="empty" class="empty hidden">
+        <div class="empty-icon">📋</div>
+        <h2>No hay registros</h2>
+        <p>Pulsa «Nuevo registro» para añadir un encargo.</p>
+      </div>
+    </section>
+
+    <section id="formView" class="hidden">
+      <div class="form-header">
+        <button id="backBtn" class="secondary">← Volver</button>
+        <h2 id="formTitle">Nuevo registro</h2>
+      </div>
+
+      <form id="recordForm">
+        <div class="card">
+          <h3>Cliente</h3>
+          <div class="grid">
+            <label>Cliente<input id="client" type="text"></label>
+            <label>Número de cliente Control Integral<input id="controlNumber" type="text"></label>
+            <label>Teléfono<input id="phone" type="tel"></label>
+            <label class="wide">Dirección<input id="address" type="text"></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <h3>Electrodomésticos</h3>
+            <button type="button" id="addApplianceBtn" class="secondary">＋ Añadir electrodoméstico</button>
+          </div>
+          <div id="appliances"></div>
+        </div>
+
+        <div class="card">
+          <h3>Colocación</h3>
+          <div class="grid">
+            <label>Día colocación<input id="placementDate" type="date"></label>
+            <label>Hora colocación<input id="placementTime" type="time"></label>
+            <label class="check-label"><input id="placed" type="checkbox"> Colocado</label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Estado</h3>
+          <div class="checks">
+            <label class="check-label"><input id="paid" type="checkbox"> Pagado</label>
+            <label class="check-label"><input id="invoiced" type="checkbox"> Facturado</label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="cancelBtn" class="secondary">Cancelar</button>
+          <button type="submit" class="primary">Guardar registro</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <template id="applianceTemplate">
+    <article class="appliance">
+      <div class="appliance-head">
+        <strong>Electrodoméstico <span class="appliance-number"></span></strong>
+        <button type="button" class="remove-appliance danger-link">Eliminar</button>
+      </div>
+      <div class="grid">
+        <label>Código<input class="a-code" type="text"></label>
+        <label>Tipo de electrodoméstico
+          <select class="a-type"></select>
+        </label>
+        <label>Marca<input class="a-brand" type="text"></label>
+        <label>Precio<input class="a-price" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      </div>
+      <label class="door-change check-label hidden">
+        <input class="a-door" type="checkbox"> Cambio de puerta
+      </label>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
