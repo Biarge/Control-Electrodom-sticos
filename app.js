@@ -637,6 +637,9 @@ function render() {
 $("newBtn").onclick =
   openNew;
 
+$("floatingAdd").onclick =
+  openNew;
+
 $("backBtn").onclick =
   closeForm;
 
