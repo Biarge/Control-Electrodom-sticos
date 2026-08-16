@@ -247,6 +247,27 @@ async function saveRecord(record) {
     return false;
   }
 
+  // ACTUALIZACIÓN INMEDIATA DEL ESTADO LOCAL
+  // Ya no dependemos de Supabase Realtime para mostrar
+  // el registro recién guardado.
+
+  const savedRecord = fromDatabase(row);
+
+  if (editingId) {
+    records = records.map(r =>
+      r.id === savedRecord.id
+        ? savedRecord
+        : r
+    );
+  } else {
+    records = [
+      savedRecord,
+      ...records.filter(
+        r => r.id !== savedRecord.id
+      )
+    ];
+  }
+
   return true;
 }
 
@@ -262,20 +283,30 @@ async function deleteRecord(id) {
     return false;
   }
 
+  // Actualización inmediata del estado local
+  records = records.filter(
+    r => r.id !== id
+  );
+
+  render();
+
   return true;
 }
 
-$("recordForm").addEventListener("submit", async e => {
-  e.preventDefault();
+$("recordForm").addEventListener(
+  "submit",
+  async e => {
+    e.preventDefault();
 
-  const record = collect();
+    const record = collect();
 
-  const ok = await saveRecord(record);
+    const ok = await saveRecord(record);
 
-  if (!ok) return;
+    if (!ok) return;
 
-  closeForm();
-});
+    closeForm();
+  }
+);
 
 function matches(r, q) {
   if (!q) return true;
@@ -295,7 +326,9 @@ function matches(r, q) {
     .join(" ")
     .toLowerCase();
 
-  return haystack.includes(q.toLowerCase());
+  return haystack.includes(
+    q.toLowerCase()
+  );
 }
 
 function filterMatch(r, filter) {
@@ -348,7 +381,8 @@ function render() {
   );
 
   list.forEach(r => {
-    const card = document.createElement("article");
+    const card =
+      document.createElement("article");
 
     const completed =
       r.paid &&
@@ -357,44 +391,72 @@ function render() {
 
     card.className =
       "record" +
-      (completed ? " completed" : "");
+      (completed
+        ? " completed"
+        : "");
 
-    const total = (r.appliances || [])
-      .reduce(
-        (sum, a) =>
-          sum + Number(a.price || 0),
-        0
-      );
+    const total =
+      (r.appliances || [])
+        .reduce(
+          (sum, a) =>
+            sum +
+            Number(a.price || 0),
+          0
+        );
 
     card.innerHTML = `
       <div class="record-head">
 
         <div>
-          <h3>${esc(r.client || "Sin cliente")}</h3>
+
+          <h3>
+            ${esc(
+              r.client ||
+              "Sin cliente"
+            )}
+          </h3>
 
           <div class="meta">
-            ${esc(r.phone || "")}
+
+            ${esc(
+              r.phone || ""
+            )}
+
             ${
               r.controlNumber
                 ? " · Cliente CI " +
-                  esc(r.controlNumber)
+                  esc(
+                    r.controlNumber
+                  )
                 : ""
             }
+
           </div>
 
           ${
             r.address
               ? `<div class="meta">
-                   ${esc(r.address)}
+                   ${esc(
+                     r.address
+                   )}
                  </div>`
               : ""
           }
+
         </div>
 
         <span class="badge ${
-          r.paid ? "green" : "red"
+          r.paid
+            ? "green"
+            : "red"
         }">
-          ${r.paid ? "PAGADO" : "NO PAGADO"}
+
+          ${
+            r.paid
+              ? "PAGADO"
+              : "NO PAGADO"
+          }
+
         </span>
 
       </div>
@@ -407,6 +469,7 @@ function render() {
               <div class="appliance-row">
 
                 <strong>
+
                   ${esc(
                     a.type ||
                     "Electrodoméstico"
@@ -415,7 +478,9 @@ function render() {
                   ${
                     a.brand
                       ? " · " +
-                        esc(a.brand)
+                        esc(
+                          a.brand
+                        )
                       : ""
                   }
 
@@ -426,20 +491,27 @@ function render() {
                          </span>`
                       : ""
                   }
+
                 </strong>
 
                 <div class="meta">
+
                   ${
                     a.code
                       ? "Código: " +
-                        esc(a.code) +
+                        esc(
+                          a.code
+                        ) +
                         " · "
                       : ""
                   }
 
                   <span class="price">
-                    ${euro(a.price)}
+                    ${euro(
+                      a.price
+                    )}
                   </span>
+
                 </div>
 
               </div>
@@ -454,6 +526,7 @@ function render() {
         ${
           r.placementDate
             ? `<span class="record-date">
+
                  Colocación:
                  ${formatDate(
                    r.placementDate
@@ -462,9 +535,12 @@ function render() {
                  ${
                    r.placementTime
                      ? " · " +
-                       esc(r.placementTime)
+                       esc(
+                         r.placementTime
+                       )
                      : ""
                  }
+
                </span>`
             : ""
         }
@@ -493,7 +569,9 @@ function render() {
           total
             ? ` · Total:
                <strong>
-                 ${euro(total)}
+                 ${euro(
+                   total
+                 )}
                </strong>`
             : ""
         }
@@ -513,56 +591,77 @@ function render() {
       </div>
     `;
 
-    $("records").appendChild(card);
+    $("records")
+      .appendChild(card);
   });
 
   $("records")
-    .querySelectorAll("[data-edit]")
+    .querySelectorAll(
+      "[data-edit]"
+    )
     .forEach(button => {
+
       button.onclick = () =>
-        openEdit(button.dataset.edit);
+        openEdit(
+          button.dataset.edit
+        );
+
     });
 
   $("records")
-    .querySelectorAll("[data-delete]")
+    .querySelectorAll(
+      "[data-delete]"
+    )
     .forEach(button => {
-      button.onclick = async () => {
 
-        if (
-          !confirm(
-            "¿Eliminar este registro?"
-          )
-        ) {
-          return;
-        }
+      button.onclick =
+        async () => {
 
-        await deleteRecord(
-          button.dataset.delete
-        );
-      };
+          if (
+            !confirm(
+              "¿Eliminar este registro?"
+            )
+          ) {
+            return;
+          }
+
+          await deleteRecord(
+            button.dataset.delete
+          );
+
+        };
+
     });
 }
 
-$("newBtn").onclick = openNew;
+$("newBtn").onclick =
+  openNew;
 
-$("floatingAdd").onclick = openNew;
+$("floatingAdd").onclick =
+  openNew;
 
-$("backBtn").onclick = closeForm;
+$("backBtn").onclick =
+  closeForm;
 
-$("cancelBtn").onclick = closeForm;
+$("cancelBtn").onclick =
+  closeForm;
 
 $("addApplianceBtn").onclick =
   () => addAppliance();
 
-$("searchInput").oninput = render;
+$("searchInput").oninput =
+  render;
 
-$("statusFilter").onchange = render;
+$("statusFilter").onchange =
+  render;
 
 
 /* SINCRONIZACIÓN EN TIEMPO REAL */
 
 db
-  .channel("encargos-cambios")
+  .channel(
+    "encargos-cambios"
+  )
   .on(
     "postgres_changes",
     {
@@ -578,43 +677,63 @@ db
       );
 
       if (
-        payload.eventType === "INSERT"
+        payload.eventType ===
+        "INSERT"
       ) {
+
         const newRecord =
-          fromDatabase(payload.new);
+          fromDatabase(
+            payload.new
+          );
 
         records = [
           newRecord,
           ...records.filter(
-            r => r.id !== newRecord.id
+            r =>
+              r.id !==
+              newRecord.id
           )
         ];
+
       }
 
       if (
-        payload.eventType === "UPDATE"
+        payload.eventType ===
+        "UPDATE"
       ) {
+
         const updated =
-          fromDatabase(payload.new);
+          fromDatabase(
+            payload.new
+          );
 
-        records = records.map(
-          r =>
-            r.id === updated.id
-              ? updated
-              : r
-        );
+        records =
+          records.map(
+            r =>
+              r.id ===
+              updated.id
+                ? updated
+                : r
+          );
+
       }
 
       if (
-        payload.eventType === "DELETE"
+        payload.eventType ===
+        "DELETE"
       ) {
-        records = records.filter(
-          r =>
-            r.id !== payload.old.id
-        );
+
+        records =
+          records.filter(
+            r =>
+              r.id !==
+              payload.old.id
+          );
+
       }
 
       render();
+
     }
   )
   .subscribe();
