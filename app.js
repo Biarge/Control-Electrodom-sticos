@@ -1,170 +1,625 @@
-const STORAGE_KEY = "control-electrodomesticos-v1";
-const DEFAULT_TYPES = ["Lavadora","Lavavajillas","Frigorífico","Placa","Horno","Secadora","TV"];
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-let categories = JSON.parse(localStorage.getItem("control-electrodomesticos-categories") || "null") || DEFAULT_TYPES;
+const DEFAULT_TYPES = [
+  "Lavadora",
+  "Lavavajillas",
+  "Frigorífico",
+  "Placa",
+  "Horno",
+  "Secadora",
+  "TV"
+];
+
+let records = [];
+let categories = JSON.parse(
+  localStorage.getItem("control-electrodomesticos-categories") || "null"
+) || DEFAULT_TYPES;
+
 let editingId = null;
 
 const $ = id => document.getElementById(id);
-const agendaView = $("agendaView"), formView = $("formView"), appliancesEl = $("appliances");
 
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }
-function saveCategories(){ localStorage.setItem("control-electrodomesticos-categories", JSON.stringify(categories)); }
+const agendaView = $("agendaView");
+const formView = $("formView");
+const appliancesEl = $("appliances");
 
-function euro(v){
+function euro(v) {
   const n = Number(v || 0);
-  return n.toLocaleString("es-ES",{style:"currency",currency:"EUR"});
-}
-
-function typeOptions(select, selected=""){
-  select.innerHTML = "";
-  categories.forEach(t=>{
-    const o=document.createElement("option"); o.value=t; o.textContent=t; o.selected=t===selected; select.appendChild(o);
+  return n.toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR"
   });
 }
 
-function addAppliance(data={}){
-  const node = $("applianceTemplate").content.firstElementChild.cloneNode(true);
+function typeOptions(select, selected = "") {
+  select.innerHTML = "";
+
+  categories.forEach(type => {
+    const option = document.createElement("option");
+    option.value = type;
+    option.textContent = type;
+    option.selected = type === selected;
+    select.appendChild(option);
+  });
+}
+
+function addAppliance(data = {}) {
+  const node = $("applianceTemplate")
+    .content
+    .firstElementChild
+    .cloneNode(true);
+
   node.querySelector(".a-code").value = data.code || "";
   node.querySelector(".a-brand").value = data.brand || "";
   node.querySelector(".a-price").value = data.price ?? "";
-  typeOptions(node.querySelector(".a-type"), data.type || categories[0]);
-  const door = node.querySelector(".door-change");
+
   const type = node.querySelector(".a-type");
+  typeOptions(type, data.type || categories[0]);
+
+  const door = node.querySelector(".door-change");
   const doorCheck = node.querySelector(".a-door");
+
   doorCheck.checked = !!data.doorChange;
-  const updateDoor = ()=>door.classList.toggle("hidden", type.value !== "Frigorífico");
+
+  function updateDoor() {
+    door.classList.toggle(
+      "hidden",
+      type.value !== "Frigorífico"
+    );
+  }
+
   type.addEventListener("change", updateDoor);
   updateDoor();
-  node.querySelector(".remove-appliance").addEventListener("click", ()=>{ node.remove(); renumber(); });
+
+  node.querySelector(".remove-appliance").onclick = () => {
+    node.remove();
+    renumber();
+  };
+
   appliancesEl.appendChild(node);
   renumber();
 }
 
-function renumber(){ [...appliancesEl.querySelectorAll(".appliance-number")].forEach((e,i)=>e.textContent=i+1); }
+function renumber() {
+  [
+    ...appliancesEl.querySelectorAll(".appliance-number")
+  ].forEach((element, index) => {
+    element.textContent = index + 1;
+  });
+}
 
-function resetForm(){
+function resetForm() {
   $("recordForm").reset();
-  appliancesEl.innerHTML="";
+  appliancesEl.innerHTML = "";
   addAppliance();
-  editingId=null;
-  $("formTitle").textContent="Nuevo registro";
+
+  editingId = null;
+  $("formTitle").textContent = "Nuevo registro";
 }
 
-function openNew(){ resetForm(); agendaView.classList.add("hidden"); formView.classList.remove("hidden"); window.scrollTo(0,0); }
-function openEdit(id){
-  const r=records.find(x=>x.id===id); if(!r)return;
-  editingId=id;
-  $("formTitle").textContent="Editar registro";
-  $("client").value=r.client||"";
-  $("controlNumber").value=r.controlNumber||"";
-  $("phone").value=r.phone||"";
-  $("address").value=r.address||"";
-  $("placementDate").value=r.placementDate||"";
-  $("placementTime").value=r.placementTime||"";
-  $("placed").checked=!!r.placed; $("paid").checked=!!r.paid; $("invoiced").checked=!!r.invoiced;
-  appliancesEl.innerHTML="";
-  (r.appliances||[]).forEach(addAppliance);
-  if(!r.appliances?.length) addAppliance();
-  agendaView.classList.add("hidden"); formView.classList.remove("hidden"); window.scrollTo(0,0);
+function openNew() {
+  resetForm();
+
+  agendaView.classList.add("hidden");
+  formView.classList.remove("hidden");
+
+  window.scrollTo(0, 0);
 }
 
-function closeForm(){ formView.classList.add("hidden"); agendaView.classList.remove("hidden"); render(); }
+function openEdit(id) {
+  const r = records.find(x => x.id === id);
 
-function collect(){
-  const appliances=[...appliancesEl.querySelectorAll(".appliance")].map(n=>({
-    code:n.querySelector(".a-code").value.trim(),
-    type:n.querySelector(".a-type").value,
-    brand:n.querySelector(".a-brand").value.trim(),
-    price:n.querySelector(".a-price").value,
-    doorChange:n.querySelector(".a-door").checked
+  if (!r) return;
+
+  editingId = id;
+
+  $("formTitle").textContent = "Editar registro";
+
+  $("client").value = r.client || "";
+  $("controlNumber").value = r.controlNumber || "";
+  $("phone").value = r.phone || "";
+  $("address").value = r.address || "";
+
+  $("placementDate").value = r.placementDate || "";
+  $("placementTime").value = r.placementTime || "";
+
+  $("placed").checked = !!r.placed;
+  $("paid").checked = !!r.paid;
+  $("invoiced").checked = !!r.invoiced;
+
+  appliancesEl.innerHTML = "";
+
+  (r.appliances || []).forEach(addAppliance);
+
+  if (!r.appliances?.length) {
+    addAppliance();
+  }
+
+  agendaView.classList.add("hidden");
+  formView.classList.remove("hidden");
+
+  window.scrollTo(0, 0);
+}
+
+function closeForm() {
+  formView.classList.add("hidden");
+  agendaView.classList.remove("hidden");
+  render();
+}
+
+function collect() {
+  const appliances = [
+    ...appliancesEl.querySelectorAll(".appliance")
+  ].map(node => ({
+    code: node.querySelector(".a-code").value.trim(),
+    type: node.querySelector(".a-type").value,
+    brand: node.querySelector(".a-brand").value.trim(),
+    price: node.querySelector(".a-price").value,
+    doorChange: node.querySelector(".a-door").checked
   }));
+
   return {
     id: editingId || crypto.randomUUID(),
-    client:$("client").value.trim(),
-    controlNumber:$("controlNumber").value.trim(),
-    phone:$("phone").value.trim(),
-    address:$("address").value.trim(),
+
+    client: $("client").value.trim(),
+    controlNumber: $("controlNumber").value.trim(),
+    phone: $("phone").value.trim(),
+    address: $("address").value.trim(),
+
     appliances,
-    placementDate:$("placementDate").value,
-    placementTime:$("placementTime").value,
-    placed:$("placed").checked,
-    paid:$("paid").checked,
-    invoiced:$("invoiced").checked,
-    updatedAt:new Date().toISOString()
+
+    placementDate: $("placementDate").value,
+    placementTime: $("placementTime").value,
+
+    placed: $("placed").checked,
+    paid: $("paid").checked,
+    invoiced: $("invoiced").checked
   };
 }
 
-$("recordForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  const r=collect();
-  if(editingId) records=records.map(x=>x.id===editingId?r:x); else records.unshift(r);
-  save(); closeForm();
-});
-
-function matches(r,q){
-  if(!q)return true;
-  const hay=[r.client,r.controlNumber,r.phone,r.address,...(r.appliances||[]).flatMap(a=>[a.code,a.type,a.brand])].join(" ").toLowerCase();
-  return hay.includes(q.toLowerCase());
+function toDatabase(r) {
+  return {
+    id: r.id,
+    cliente: r.client,
+    numero_cliente_control_integral: r.controlNumber,
+    telefono: r.phone,
+    direccion: r.address,
+    dia_colocacion: r.placementDate || null,
+    hora_colocacion: r.placementTime || null,
+    colocado: r.placed,
+    pagado: r.paid,
+    facturado: r.invoiced,
+    electrodomesticos: r.appliances || [],
+    updated_at: new Date().toISOString()
+  };
 }
-function filterMatch(r,f){
-  if(f==="paid")return r.paid;
-  if(f==="unpaid")return !r.paid;
-  if(f==="placed")return r.placed;
-  if(f==="pending")return !r.placed;
-  if(f==="invoiced")return r.invoiced;
-  if(f==="notInvoiced")return !r.invoiced;
+
+function fromDatabase(r) {
+  return {
+    id: r.id,
+    client: r.cliente || "",
+    controlNumber: r.numero_cliente_control_integral || "",
+    phone: r.telefono || "",
+    address: r.direccion || "",
+
+    placementDate: r.dia_colocacion || "",
+    placementTime: r.hora_colocacion || "",
+
+    placed: !!r.colocado,
+    paid: !!r.pagado,
+    invoiced: !!r.facturado,
+
+    appliances: r.electrodomesticos || []
+  };
+}
+
+async function loadRecords() {
+  const { data, error } = await db
+    .from("encargos")
+    .select("*")
+    .order("dia_colocacion", {
+      ascending: true,
+      nullsFirst: false
+    });
+
+  if (error) {
+    console.error(error);
+    alert("No se han podido cargar los registros.");
+    return;
+  }
+
+  records = data.map(fromDatabase);
+
+  render();
+}
+
+async function saveRecord(record) {
+  const row = toDatabase(record);
+
+  const { error } = await db
+    .from("encargos")
+    .upsert(row);
+
+  if (error) {
+    console.error(error);
+    alert("No se ha podido guardar el registro.");
+    return false;
+  }
+
   return true;
 }
 
-function render(){
-  const q=$("searchInput").value.trim(), f=$("statusFilter").value;
-  const list=records.filter(r=>matches(r,q)&&filterMatch(r,f));
-  $("records").innerHTML="";
-  $("empty").classList.toggle("hidden", list.length!==0);
-  list.forEach(r=>{
-    const card=document.createElement("article");
-    card.className="record "+(r.paid?"paid":"");
-    const total=(r.appliances||[]).reduce((s,a)=>s+Number(a.price||0),0);
-    card.innerHTML=`
+async function deleteRecord(id) {
+  const { error } = await db
+    .from("encargos")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    alert("No se ha podido eliminar el registro.");
+    return false;
+  }
+
+  return true;
+}
+
+$("recordForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const record = collect();
+
+  const ok = await saveRecord(record);
+
+  if (!ok) return;
+
+  closeForm();
+});
+
+function matches(r, q) {
+  if (!q) return true;
+
+  const haystack = [
+    r.client,
+    r.controlNumber,
+    r.phone,
+    r.address,
+
+    ...(r.appliances || []).flatMap(a => [
+      a.code,
+      a.type,
+      a.brand
+    ])
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(q.toLowerCase());
+}
+
+function filterMatch(r, filter) {
+  if (filter === "paid") return r.paid;
+  if (filter === "unpaid") return !r.paid;
+
+  if (filter === "placed") return r.placed;
+  if (filter === "pending") return !r.placed;
+
+  if (filter === "invoiced") return r.invoiced;
+  if (filter === "notInvoiced") return !r.invoiced;
+
+  return true;
+}
+
+function esc(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char])
+  );
+}
+
+function formatDate(date) {
+  return new Date(
+    date + "T00:00:00"
+  ).toLocaleDateString("es-ES");
+}
+
+function render() {
+  const q = $("searchInput").value.trim();
+  const filter = $("statusFilter").value;
+
+  const list = records.filter(
+    r =>
+      matches(r, q) &&
+      filterMatch(r, filter)
+  );
+
+  $("records").innerHTML = "";
+
+  $("empty").classList.toggle(
+    "hidden",
+    list.length !== 0
+  );
+
+  list.forEach(r => {
+    const card = document.createElement("article");
+
+    const completed =
+      r.paid &&
+      r.invoiced &&
+      r.placed;
+
+    card.className =
+      "record" +
+      (completed ? " completed" : "");
+
+    const total = (r.appliances || [])
+      .reduce(
+        (sum, a) =>
+          sum + Number(a.price || 0),
+        0
+      );
+
+    card.innerHTML = `
       <div class="record-head">
+
         <div>
-          <h3>${esc(r.client||"Sin cliente")}</h3>
-          <div class="meta">${esc(r.phone||"")}${r.controlNumber?" · Cliente CI "+esc(r.controlNumber):""}</div>
-          ${r.address?`<div class="meta">${esc(r.address)}</div>`:""}
+          <h3>${esc(r.client || "Sin cliente")}</h3>
+
+          <div class="meta">
+            ${esc(r.phone || "")}
+            ${
+              r.controlNumber
+                ? " · Cliente CI " +
+                  esc(r.controlNumber)
+                : ""
+            }
+          </div>
+
+          ${
+            r.address
+              ? `<div class="meta">
+                   ${esc(r.address)}
+                 </div>`
+              : ""
+          }
         </div>
-        <div>
-          <span class="badge ${r.paid?"green":"red"}">${r.paid?"PAGADO":"NO PAGADO"}</span>
-        </div>
+
+        <span class="badge ${
+          r.paid ? "green" : "red"
+        }">
+          ${r.paid ? "PAGADO" : "NO PAGADO"}
+        </span>
+
       </div>
+
       <div class="appliance-list">
-        ${(r.appliances||[]).map(a=>`<div class="appliance-row">
-          <strong>${esc(a.type||"Electrodoméstico")} ${a.brand?"· "+esc(a.brand):""} ${a.doorChange?'<span class="door">Cambio de puerta</span>':""}</strong>
-          <div class="meta">${a.code?"Código: "+esc(a.code)+" · ":""}<span class="price">${euro(a.price)}</span></div>
-        </div>`).join("")}
+
+        ${(r.appliances || [])
+          .map(
+            a => `
+              <div class="appliance-row">
+
+                <strong>
+                  ${esc(
+                    a.type ||
+                    "Electrodoméstico"
+                  )}
+
+                  ${
+                    a.brand
+                      ? " · " +
+                        esc(a.brand)
+                      : ""
+                  }
+
+                  ${
+                    a.doorChange
+                      ? `<span class="door">
+                           Cambio de puerta
+                         </span>`
+                      : ""
+                  }
+                </strong>
+
+                <div class="meta">
+                  ${
+                    a.code
+                      ? "Código: " +
+                        esc(a.code) +
+                        " · "
+                      : ""
+                  }
+
+                  <span class="price">
+                    ${euro(a.price)}
+                  </span>
+                </div>
+
+              </div>
+            `
+          )
+          .join("")}
+
       </div>
+
       <div class="meta">
-        ${r.placementDate?`<span class="record-date">Colocación: ${formatDate(r.placementDate)}${r.placementTime?" · "+esc(r.placementTime):""}</span>`:""}
-        ${r.placed?" · <span class='badge green'>COLOCADO</span>":" · <span class='badge gray'>PENDIENTE</span>"}
-        ${r.invoiced?" · <span class='badge green'>FACTURADO</span>":" · <span class='badge gray'>NO FACTURADO</span>"}
-        ${total?` · Total: <strong>${euro(total)}</strong>`:""}
+
+        ${
+          r.placementDate
+            ? `<span class="record-date">
+                 Colocación:
+                 ${formatDate(
+                   r.placementDate
+                 )}
+
+                 ${
+                   r.placementTime
+                     ? " · " +
+                       esc(r.placementTime)
+                     : ""
+                 }
+               </span>`
+            : ""
+        }
+
+        ${
+          r.placed
+            ? ` · <span class="badge green">
+                 COLOCADO
+               </span>`
+            : ` · <span class="badge gray">
+                 PENDIENTE
+               </span>`
+        }
+
+        ${
+          r.invoiced
+            ? ` · <span class="badge green">
+                 FACTURADO
+               </span>`
+            : ` · <span class="badge gray">
+                 NO FACTURADO
+               </span>`
+        }
+
+        ${
+          total
+            ? ` · Total:
+               <strong>
+                 ${euro(total)}
+               </strong>`
+            : ""
+        }
+
       </div>
+
       <div class="record-actions">
-        <button data-edit="${r.id}">Editar</button>
-        <button data-delete="${r.id}">Eliminar</button>
-      </div>`;
+
+        <button data-edit="${r.id}">
+          Editar
+        </button>
+
+        <button data-delete="${r.id}">
+          Eliminar
+        </button>
+
+      </div>
+    `;
+
     $("records").appendChild(card);
   });
-  $("records").querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
-  $("records").querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>{
-    if(confirm("¿Eliminar este registro?")){records=records.filter(x=>x.id!==b.dataset.delete);save();render();}
-  });
-}
-function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function formatDate(d){return new Date(d+"T00:00:00").toLocaleDateString("es-ES");}
 
-$("newBtn").onclick=openNew;
-$("backBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm;
-$("addApplianceBtn").onclick=()=>addAppliance();
-$("searchInput").oninput=render; $("statusFilter").onchange=render;
-render();
+  $("records")
+    .querySelectorAll("[data-edit]")
+    .forEach(button => {
+      button.onclick = () =>
+        openEdit(button.dataset.edit);
+    });
+
+  $("records")
+    .querySelectorAll("[data-delete]")
+    .forEach(button => {
+      button.onclick = async () => {
+
+        if (
+          !confirm(
+            "¿Eliminar este registro?"
+          )
+        ) {
+          return;
+        }
+
+        await deleteRecord(
+          button.dataset.delete
+        );
+      };
+    });
+}
+
+$("newBtn").onclick = openNew;
+
+$("floatingAdd").onclick = openNew;
+
+$("backBtn").onclick = closeForm;
+
+$("cancelBtn").onclick = closeForm;
+
+$("addApplianceBtn").onclick =
+  () => addAppliance();
+
+$("searchInput").oninput = render;
+
+$("statusFilter").onchange = render;
+
+
+/* SINCRONIZACIÓN EN TIEMPO REAL */
+
+db
+  .channel("encargos-cambios")
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "encargos"
+    },
+    payload => {
+
+      console.log(
+        "Cambio recibido:",
+        payload
+      );
+
+      if (
+        payload.eventType === "INSERT"
+      ) {
+        const newRecord =
+          fromDatabase(payload.new);
+
+        records = [
+          newRecord,
+          ...records.filter(
+            r => r.id !== newRecord.id
+          )
+        ];
+      }
+
+      if (
+        payload.eventType === "UPDATE"
+      ) {
+        const updated =
+          fromDatabase(payload.new);
+
+        records = records.map(
+          r =>
+            r.id === updated.id
+              ? updated
+              : r
+        );
+      }
+
+      if (
+        payload.eventType === "DELETE"
+      ) {
+        records = records.filter(
+          r =>
+            r.id !== payload.old.id
+        );
+      }
+
+      render();
+    }
+  )
+  .subscribe();
+
+
+/* ARRANCAR APLICACIÓN */
+
+loadRecords();
