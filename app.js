@@ -1,5 +1,6 @@
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
 
 const DEFAULT_TYPES = [
   "Lavadora",
@@ -23,6 +24,12 @@ const $ = id => document.getElementById(id);
 const agendaView = $("agendaView");
 const formView = $("formView");
 const appliancesEl = $("appliances");
+
+function showLogin() { $("authView").classList.remove("hidden"); $("agendaView").classList.add("hidden"); $("formView").classList.add("hidden"); $("newBtn").classList.add("hidden"); $("floatingAdd").classList.add("hidden"); $("sessionBar").classList.add("hidden"); }
+function showApp(user) { currentUser = user; $("authView").classList.add("hidden"); $("agendaView").classList.remove("hidden"); $("newBtn").classList.remove("hidden"); $("floatingAdd").classList.remove("hidden"); $("sessionBar").classList.remove("hidden"); $("userName").textContent = user.email; }
+function toast(message) { const el = document.createElement("div"); el.className = "toast"; el.textContent = message; document.body.appendChild(el); setTimeout(() => el.remove(), 4000); }
+$("loginForm").onsubmit = async e => { e.preventDefault(); const { data, error } = await db.auth.signInWithPassword({ email: $("loginEmail").value.trim(), password: $("loginPassword").value }); if (error) { $("loginError").textContent = "No se ha podido iniciar sesión."; $("loginError").classList.remove("hidden"); return; } await start(data.user); };
+$("logoutBtn").onclick = async () => { await db.auth.signOut(); currentUser = null; showLogin(); };
 
 function euro(v) {
   const n = Number(v || 0);
@@ -119,6 +126,8 @@ function openEdit(id) {
   $("client").value = r.client || "";
   $("controlNumber").value = r.controlNumber || "";
   $("phone").value = r.phone || "";
+  $("dni").value = r.dni || "";
+  $("observations").value = r.observations || "";
   $("address").value = r.address || "";
 
   $("placementDate").value = r.placementDate || "";
@@ -165,6 +174,8 @@ function collect() {
     client: $("client").value.trim(),
     controlNumber: $("controlNumber").value.trim(),
     phone: $("phone").value.trim(),
+    dni: $("dni").value.trim(),
+    observations: $("observations").value.trim(),
     address: $("address").value.trim(),
 
     appliances,
@@ -184,6 +195,8 @@ function toDatabase(r) {
     cliente: r.client,
     numero_cliente_control_integral: r.controlNumber,
     telefono: r.phone,
+    dni: r.dni || null,
+    observaciones: r.observations || null,
     direccion: r.address,
     dia_colocacion: r.placementDate || null,
     hora_colocacion: r.placementTime || null,
@@ -201,6 +214,8 @@ function fromDatabase(r) {
     client: r.cliente || "",
     controlNumber: r.numero_cliente_control_integral || "",
     phone: r.telefono || "",
+    dni: r.dni || "",
+    observations: r.observaciones || "",
     address: r.direccion || "",
 
     placementDate: r.dia_colocacion || "",
@@ -315,7 +330,9 @@ function matches(r, q) {
     r.client,
     r.controlNumber,
     r.phone,
+    r.dni,
     r.address,
+    r.observations,
 
     ...(r.appliances || []).flatMap(a => [
       a.code,
@@ -423,6 +440,9 @@ function render() {
             )}
 
             ${
+              r.dni ? " · DNI " + esc(r.dni) : ""
+            }
+            ${
               r.controlNumber
                 ? " · Cliente CI " +
                   esc(
@@ -433,6 +453,7 @@ function render() {
 
           </div>
 
+          ${ r.observations ? `<div class="meta">Observaciones: ${esc(r.observations)}</div>` : "" }
           ${
             r.address
               ? `<div class="meta">
@@ -656,89 +677,15 @@ $("statusFilter").onchange =
   render;
 
 
-/* SINCRONIZACIÓN EN TIEMPO REAL */
-
-db
-  .channel(
-    "encargos-cambios"
-  )
-  .on(
-    "postgres_changes",
-    {
-      event: "*",
-      schema: "public",
-      table: "encargos"
-    },
-    payload => {
-
-      console.log(
-        "Cambio recibido:",
-        payload
-      );
-
-      if (
-        payload.eventType ===
-        "INSERT"
-      ) {
-
-        const newRecord =
-          fromDatabase(
-            payload.new
-          );
-
-        records = [
-          newRecord,
-          ...records.filter(
-            r =>
-              r.id !==
-              newRecord.id
-          )
-        ];
-
-      }
-
-      if (
-        payload.eventType ===
-        "UPDATE"
-      ) {
-
-        const updated =
-          fromDatabase(
-            payload.new
-          );
-
-        records =
-          records.map(
-            r =>
-              r.id ===
-              updated.id
-                ? updated
-                : r
-          );
-
-      }
-
-      if (
-        payload.eventType ===
-        "DELETE"
-      ) {
-
-        records =
-          records.filter(
-            r =>
-              r.id !==
-              payload.old.id
-          );
-
-      }
-
-      render();
-
-    }
-  )
-  .subscribe();
-
-
-/* ARRANCAR APLICACIÓN */
-
-loadRecords();
+async function start(user) {
+  showApp(user);
+  await loadRecords();
+  db.removeAllChannels();
+  db.channel("encargos-cambios").on("postgres_changes", { event: "*", schema: "public", table: "encargos" }, payload => {
+    if (payload.eventType === "INSERT") { const record = fromDatabase(payload.new); records = [record, ...records.filter(r => r.id !== record.id)]; toast("Se ha creado un encargo."); }
+    if (payload.eventType === "UPDATE") { const record = fromDatabase(payload.new); records = records.map(r => r.id === record.id ? record : r); toast("Se ha modificado un encargo."); }
+    if (payload.eventType === "DELETE") { records = records.filter(r => r.id !== payload.old.id); toast("Se ha eliminado un encargo."); }
+    render();
+  }).subscribe();
+}
+(async () => { const { data: { session } } = await db.auth.getSession(); if (session) await start(session.user); else showLogin(); })();
