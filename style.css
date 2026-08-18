@@ -29,3 +29,5 @@
     bottom: 24px;
   }
 }
+
+textarea{display:block;width:100%;margin-top:6px;border:1px solid #d1d5db;border-radius:9px;padding:11px;font:inherit;background:#fff;resize:vertical}.session-bar{display:flex;align-items:center;gap:10px}.auth-card{max-width:420px;margin:60px auto;background:#fff;padding:24px;border-radius:14px;box-shadow:0 1px 3px #0000000d}.auth-card label{display:block;margin-top:14px}.auth-card .primary{margin-top:18px;width:100%}.form-error{color:#b91c1c}.toast{position:fixed;right:20px;bottom:94px;z-index:1100;background:#111827;color:#fff;padding:14px 18px;border-radius:10px;box-shadow:0 6px 20px #0004}
